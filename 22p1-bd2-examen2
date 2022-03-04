@@ -1,0 +1,68 @@
+select * from bd_factsv2.tbl_asesores ;
+select * from bd_factsv2.tbl_clientes ;
+select * from bd_factsv2.tbl_facturas ;
+select * from bd_factsv2.tbl_productos ;
+select * from bd_factsv2.tbl_productos_facturados ;
+/*
+
+*/
+
+DROP procedure IF EXISTS bd_factsv2.product_factu;
+
+DELIMITER //
+CREATE  PROCEDURE  bd_factsv2.product_factu (
+	in p_idFactura 				int,
+	in p_idProducto 			int,
+	in p_cantidad 				int
+
+ )
+BEGIN 
+    declare  v_idfactura int; 
+    declare  v_idproducto int; 
+    declare  v_cantidad int;
+    declare  v_saldounidades int;
+    declare  v_precioVenta int;
+    declare  v_impuestosobreventa int;
+    
+    
+    set v_idFactura         	= p_idFactura ;
+    set v_idProducto   		= p_idProducto; 
+    set v_cantidad        	= p_cantidad;
+    
+
+    select saldoUnidades into v_saldoUnidades 
+    from bd_factsv2.tbl_productos 
+    where idProducto = v_idProducto;
+    
+    select precioVenta into v_precioVenta 
+    from bd_factsv2.tbl_productos 
+    where idProducto = v_idProducto;
+    
+    
+    if saldoUnidades>= v_cantidad then 
+    
+        insert into tbl_productos_facturados
+            (idProducto,idFactura,cantidad,impuestosobreventa,precioVenta)
+        values 
+            (v_idProducto,v_idFactura ,v_cantidad,v_impuestosobreventa,v_precioVenta);
+            
+        update bd_factsv2.tbl_productos 
+        set saldoUnidades	=	saldoUnidades - v_cantidad
+        where idProducto	=	idProducto;
+        
+
+        update bd_factsv2.tbl_facturas set 
+            cantidadProductos = v_cantidad,
+		subTotalPagar = v_cantidad * v_precioVenta,
+		totalISV = (v_cantidad * v_precioVenta) * 0.15,
+		totalpagar = (v_cantidad * v_precioVenta) * 1.15
+        where idFactura = v_idFactura ;
+        
+    end if;
+    commit;
+ END;
+);
+   
+   
+   call bd_factsv2.product_factu (1026, 207, 1)
+    
